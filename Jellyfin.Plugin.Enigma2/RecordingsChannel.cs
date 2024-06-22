@@ -7,23 +7,24 @@ using System.Threading.Tasks;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Channels;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.LiveTv;
 using MediaBrowser.Model.MediaInfo;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Enigma2
 {
     public class RecordingsChannel : IChannel, IHasCacheKey, ISupportsDelete, ISupportsLatestMedia, ISupportsMediaProbe, IHasFolderAttributes
     {
-        public ILiveTvManager _liveTvManager;
+        private readonly ILogger<LiveTvService> _logger;
 
-        public RecordingsChannel(ILiveTvManager liveTvManager)
+        public RecordingsChannel(ILoggerFactory loggerFactory)
         {
-            _liveTvManager = liveTvManager;
+            _logger = loggerFactory.CreateLogger<LiveTvService>();
+            _logger.LogDebug("[Enigma2] RecordingsChannel()");
         }
 
         public string Name => "Enigma2 Recordings";
@@ -110,7 +111,7 @@ namespace Jellyfin.Plugin.Enigma2
 
         private LiveTvService GetService()
         {
-            return _liveTvManager.Services.OfType<LiveTvService>().First();
+            return LiveTvService.Instance;
         }
 
         public bool CanDelete(BaseItem item)

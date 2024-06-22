@@ -35,12 +35,15 @@ namespace Jellyfin.Plugin.Enigma2
 
         public DateTime LastRecordingChange = DateTime.MinValue;
 
-        private readonly HttpClient _httpClient;
+        private IHttpClientFactory _httpClientFactory;
+
+        public static LiveTvService Instance { get; private set; }
 
         public LiveTvService(ILogger<LiveTvService> logger, IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
-            _httpClient = GetHttpClient(httpClientFactory);
+            _httpClientFactory = httpClientFactory;
+            Instance = this;
         }
 
 
@@ -49,7 +52,7 @@ namespace Jellyfin.Plugin.Enigma2
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        private async Task EnsureConnectionAsync(CancellationToken cancellationToken)
+        public async Task EnsureConnectionAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("[Enigma2] Start EnsureConnectionAsync");
 
@@ -151,9 +154,9 @@ namespace Jellyfin.Plugin.Enigma2
         /// </summary>
         /// <param name="httpClientFactory"></param>
         /// <returns></returns>
-        private HttpClient GetHttpClient(IHttpClientFactory httpClientFactory)
+        private HttpClient GetHttpClient()
         {
-            var httpClient = httpClientFactory.CreateClient(NamedClient.Default);
+            var httpClient = _httpClientFactory.CreateClient(NamedClient.Default);
             httpClient.DefaultRequestHeaders.UserAgent.Add(
                 new ProductInfoHeaderValue(Name, Plugin.Instance.Version.ToString()));
 
@@ -189,7 +192,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/getservices", baseUrl);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] InitiateSession url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -290,7 +293,7 @@ namespace Jellyfin.Plugin.Enigma2
                 baseUrlPicon = protocol + "://" + Plugin.Instance.Configuration.WebInterfaceUsername + ":" + Plugin.Instance.Configuration.WebInterfacePassword + "@" + Plugin.Instance.Configuration.HostName + ":" + Plugin.Instance.Configuration.WebInterfacePort;
             }
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -454,7 +457,7 @@ namespace Jellyfin.Plugin.Enigma2
                 baseUrlPicon = protocol + "://" + Plugin.Instance.Configuration.WebInterfaceUsername + ":" + Plugin.Instance.Configuration.WebInterfacePassword + "@" + Plugin.Instance.Configuration.HostName + ":" + Plugin.Instance.Configuration.WebInterfacePort;
             }
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -555,11 +558,11 @@ namespace Jellyfin.Plugin.Enigma2
         /// Gets the Recordings async
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>Task{IEnumerable{RecordingInfo}}</returns>
-        public async Task<IEnumerable<RecordingInfo>> GetRecordingsAsync(CancellationToken cancellationToken)
+        /// <returns>Task{IEnumerable{MyRecordingInfo}}</returns>
+        public async Task<IEnumerable<MyRecordingInfo>> GetRecordingsAsync(CancellationToken cancellationToken)
         {
             await Task.Delay(0); //to avoid await warnings
-            return new List<RecordingInfo>();
+            return new List<MyRecordingInfo>();
         }
 
         public async Task<IEnumerable<MyRecordingInfo>> GetAllRecordingsAsync(CancellationToken cancellationToken)
@@ -578,7 +581,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/movielist", baseUrl);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] GetRecordingsAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -757,7 +760,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/moviedelete?sRef={1}", baseUrl, recordingId);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] DeleteRecordingAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -772,7 +775,7 @@ namespace Jellyfin.Plugin.Enigma2
                         var e2simplexmlresult = xml.GetElementsByTagName("e2simplexmlresult");
                         foreach (XmlNode xmlNode in e2simplexmlresult)
                         {
-                            var recordingInfo = new RecordingInfo();
+                            var recordingInfo = new MyRecordingInfo();
 
                             var e2state = "?";
                             var e2statetext = "?";
@@ -837,7 +840,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/timerdelete?sRef={1}&begin={2}&end={3}", baseUrl, sRef, begin, end);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] CancelTimerAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -852,7 +855,7 @@ namespace Jellyfin.Plugin.Enigma2
                         var e2simplexmlresult = xml.GetElementsByTagName("e2simplexmlresult");
                         foreach (XmlNode xmlNode in e2simplexmlresult)
                         {
-                            var recordingInfo = new RecordingInfo();
+                            var recordingInfo = new MyRecordingInfo();
 
                             var e2state = "?";
                             var e2statetext = "?";
@@ -920,7 +923,7 @@ namespace Jellyfin.Plugin.Enigma2
 
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] CreateTimerAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -935,7 +938,7 @@ namespace Jellyfin.Plugin.Enigma2
                         var e2simplexmlresult = xml.GetElementsByTagName("e2simplexmlresult");
                         foreach (XmlNode xmlNode in e2simplexmlresult)
                         {
-                            var recordingInfo = new RecordingInfo();
+                            var recordingInfo = new MyRecordingInfo();
 
                             var e2state = "?";
                             var e2statetext = "?";
@@ -992,7 +995,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/timerlist", baseUrl);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] GetTimersAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -1215,7 +1218,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/zap?sRef={1}", baseUrl, channelOid);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] ZapToChannel url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -1230,7 +1233,7 @@ namespace Jellyfin.Plugin.Enigma2
                         var e2simplexmlresult = xml.GetElementsByTagName("e2simplexmlresult");
                         foreach (XmlNode xmlNode in e2simplexmlresult)
                         {
-                            var recordingInfo = new RecordingInfo();
+                            var recordingInfo = new MyRecordingInfo();
 
                             var e2state = "?";
                             var e2statetext = "?";
@@ -1314,7 +1317,7 @@ namespace Jellyfin.Plugin.Enigma2
             var url = string.Format("{0}/web/epgservice?sRef={1}", baseUrl, channelId);
             UtilsHelper.DebugInformation(_logger, string.Format("[Enigma2] GetProgramsAsync url: {0}", url));
 
-            using (var stream = await _httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            using (var stream = await GetHttpClient().GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
             {
                 using (var reader = new StreamReader(stream))
                 {
@@ -1476,7 +1479,7 @@ namespace Jellyfin.Plugin.Enigma2
         /// </summary>
         /// <param name="cancellationToken">The CancellationToken</param>
         /// <returns>LiveTvServiceStatusInfo</returns>
-        public async Task<LiveTvServiceStatusInfo> GetStatusInfoAsync(CancellationToken cancellationToken)
+        /*public async Task<LiveTvServiceStatusInfo> GetStatusInfoAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("[Enigma2] Start GetStatusInfoAsync Async, retrieve status details");
             await EnsureConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -1555,7 +1558,7 @@ namespace Jellyfin.Plugin.Enigma2
 
                 }
             }
-        }
+        }*/
 
 
         /// <summary>
@@ -1581,8 +1584,12 @@ namespace Jellyfin.Plugin.Enigma2
 
         public async Task CloseLiveStream(string id, CancellationToken cancellationToken)
         {
-            await Task.Delay(0); //to avoid await warnings
-            throw new NotImplementedException();
+            await Task.Factory.StartNew<string>(() =>
+            {
+                _logger.LogDebug("[Enigma2] LiveTvService.CloseLiveStream: closed stream for subscriptionId: {id}", id);
+                return id;
+            });
+
         }
 
 
@@ -1676,21 +1683,21 @@ namespace Jellyfin.Plugin.Enigma2
         }
 
 
-        public Task<ImageStream> GetChannelImageAsync(string channelId, CancellationToken cancellationToken)
+        public Task<Stream> GetChannelImageAsync(string channelId, CancellationToken cancellationToken)
         {
             // Leave as is. This is handled by supplying image url to ChannelInfo
             throw new NotImplementedException();
         }
 
 
-        public Task<ImageStream> GetProgramImageAsync(string programId, string channelId, CancellationToken cancellationToken)
+        public Task<Stream> GetProgramImageAsync(string programId, string channelId, CancellationToken cancellationToken)
         {
             // Leave as is. This is handled by supplying image url to ProgramInfo
             throw new NotImplementedException();
         }
 
 
-        public Task<ImageStream> GetRecordingImageAsync(string recordingId, CancellationToken cancellationToken)
+        public Task<Stream> GetRecordingImageAsync(string recordingId, CancellationToken cancellationToken)
         {
             // Leave as is. This is handled by supplying image url to RecordingInfo
             throw new NotImplementedException();
